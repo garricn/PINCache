@@ -7,7 +7,7 @@
 #import <pthread.h>
 
 #if !__has_include (<PINOperation/PINOperation.h>)
-#import "PINOperation.h"
+#import "../PINOperation/Source/PINOperation.h"
 #else
 #import <PINOperation/PINOperation.h>
 #endif
@@ -76,35 +76,35 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
     if (self = [super init]) {
         __unused int result = pthread_mutex_init(&_mutex, NULL);
         NSAssert(result == 0, @"Failed to init lock in PINMemoryCache %@. Code: %d", self, result);
-        
+
         _name = [name copy];
         _operationQueue = operationQueue;
         _ttlCache = ttlCache;
-        
+
         _dictionary = [[NSMutableDictionary alloc] init];
         _createdDates = [[NSMutableDictionary alloc] init];
         _accessDates = [[NSMutableDictionary alloc] init];
         _costs = [[NSMutableDictionary alloc] init];
         _ageLimits = [[NSMutableDictionary alloc] init];
-        
+
         _willAddObjectBlock = nil;
         _willRemoveObjectBlock = nil;
         _willRemoveAllObjectsBlock = nil;
-        
+
         _didAddObjectBlock = nil;
         _didRemoveObjectBlock = nil;
         _didRemoveAllObjectsBlock = nil;
-        
+
         _didReceiveMemoryWarningBlock = nil;
         _didEnterBackgroundBlock = nil;
-        
+
         _ageLimit = 0.0;
         _costLimit = 0;
         _totalCost = 0;
-        
+
         _removeAllObjectsOnMemoryWarning = YES;
         _removeAllObjectsOnEnteringBackground = YES;
-        
+
 #if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_4_0 && !TARGET_OS_WATCH
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(didReceiveEnterBackgroundNotification:)
@@ -114,7 +114,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
                                                  selector:@selector(didReceiveMemoryWarningNotification:)
                                                      name:UIApplicationDidReceiveMemoryWarningNotification
                                                    object:nil];
-        
+
 #endif
     }
     return self;
@@ -145,7 +145,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
         [self lock];
             PINCacheBlock didReceiveMemoryWarningBlock = self->_didReceiveMemoryWarningBlock;
         [self unlock];
-        
+
         if (didReceiveMemoryWarningBlock)
             didReceiveMemoryWarningBlock(self);
     } withPriority:PINOperationQueuePriorityHigh];
@@ -188,7 +188,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
         [_costs removeObjectForKey:key];
         [_ageLimits removeObjectForKey:key];
     [self unlock];
-    
+
     if (didRemoveObjectBlock)
         didRemoveObjectBlock(self, key, nil);
 }
@@ -199,7 +199,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
         NSDictionary *createdDates = [_createdDates copy];
         NSDictionary *ageLimits = [_ageLimits copy];
     [self unlock];
-    
+
     [createdDates enumerateKeysAndObjectsUsingBlock:^(NSString * _Nonnull key, NSDate * _Nonnull createdDate, BOOL * _Nonnull stop) {
         NSTimeInterval ageLimit = [ageLimits[key] doubleValue];
         if (!createdDate || ageLimit > 0.0) {
@@ -236,12 +236,12 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 - (void)trimToCostLimit:(NSUInteger)limit
 {
     NSUInteger totalCost = 0;
-    
+
     [self lock];
         totalCost = _totalCost;
         NSArray *keysSortedByCost = [_costs keysSortedByValueUsingSelector:@selector(compare:)];
     [self unlock];
-    
+
     if (totalCost <= limit) {
         return;
     }
@@ -252,7 +252,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
         [self lock];
             totalCost = _totalCost;
         [self unlock];
-        
+
         if (totalCost <= limit)
             break;
     }
@@ -265,12 +265,12 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
     }
 
     NSUInteger totalCost = 0;
-    
+
     [self lock];
         totalCost = _totalCost;
         NSArray *keysSortedByAccessDate = [_accessDates keysSortedByValueUsingSelector:@selector(compare:)];
     [self unlock];
-    
+
     if (totalCost <= limit)
         return;
 
@@ -290,14 +290,14 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
     [self lock];
         NSTimeInterval ageLimit = _ageLimit;
     [self unlock];
-    
+
     if (ageLimit == 0.0)
         return;
 
     NSDate *date = [[NSDate alloc] initWithTimeIntervalSinceNow:-ageLimit];
-    
+
     [self trimMemoryToDate:date];
-    
+
     dispatch_time_t time = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(ageLimit * NSEC_PER_SEC));
     dispatch_after(time, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(void){
         // Ensure that ageLimit is the same as when we were scheduled, otherwise, we've been
@@ -308,7 +308,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
                 shouldReschedule = NO;
             }
         [self unlock];
-        
+
         if (shouldReschedule) {
             [self.operationQueue scheduleOperation:^{
                 [self trimToAgeLimitRecursively];
@@ -323,10 +323,10 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     if (!key || !block)
         return;
-    
+
     [self.operationQueue scheduleOperation:^{
         BOOL containsObject = [self containsObjectForKey:key];
-        
+
         block(containsObject);
     } withPriority:PINOperationQueuePriorityHigh];
 }
@@ -336,10 +336,10 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
     if (block == nil) {
       return;
     }
-    
+
     [self.operationQueue scheduleOperation:^{
         id object = [self objectForKey:key];
-        
+
         block(self, key, object);
     } withPriority:PINOperationQueuePriorityHigh];
 }
@@ -363,7 +363,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     [self.operationQueue scheduleOperation:^{
         [self setObject:object forKey:key withCost:cost ageLimit:ageLimit];
-        
+
         if (block)
             block(self, key, object);
     } withPriority:PINOperationQueuePriorityHigh];
@@ -373,7 +373,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     [self.operationQueue scheduleOperation:^{
         [self removeObjectForKey:key];
-        
+
         if (block)
             block(self, key, nil);
     } withPriority:PINOperationQueuePriorityLow];
@@ -383,7 +383,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     [self.operationQueue scheduleOperation:^{
         [self trimToDate:trimDate];
-        
+
         if (block)
             block(self);
     } withPriority:PINOperationQueuePriorityLow];
@@ -393,7 +393,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     [self.operationQueue scheduleOperation:^{
         [self trimToCost:cost];
-        
+
         if (block)
             block(self);
     } withPriority:PINOperationQueuePriorityLow];
@@ -403,7 +403,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     [self.operationQueue scheduleOperation:^{
         [self trimToCostByDate:cost];
-        
+
         if (block)
             block(self);
     } withPriority:PINOperationQueuePriorityLow];
@@ -423,7 +423,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     [self.operationQueue scheduleOperation:^{
         [self removeAllObjects];
-        
+
         if (block)
             block(self);
     } withPriority:PINOperationQueuePriorityLow];
@@ -433,7 +433,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     [self.operationQueue scheduleOperation:^{
         [self enumerateObjectsWithBlock:block];
-        
+
         if (completionBlock)
             completionBlock(self);
     } withPriority:PINOperationQueuePriorityLow];
@@ -445,7 +445,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     if (!key)
         return NO;
-    
+
     [self lock];
         BOOL containsObject = (_dictionary[key] != nil);
     [self unlock];
@@ -456,7 +456,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     if (!key)
         return nil;
-    
+
     NSDate *now = [NSDate date];
     [self lock];
         id object = nil;
@@ -466,7 +466,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
             object = _dictionary[key];
         }
     [self unlock];
-        
+
     if (object) {
         [self lock];
             _accessDates[key] = now;
@@ -511,16 +511,16 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 
     if (!key || !object)
         return;
-    
+
     [self lock];
         PINCacheObjectBlock willAddObjectBlock = _willAddObjectBlock;
         PINCacheObjectBlock didAddObjectBlock = _didAddObjectBlock;
         NSUInteger costLimit = _costLimit;
     [self unlock];
-    
+
     if (willAddObjectBlock)
         willAddObjectBlock(self, key, object);
-    
+
     [self lock];
         NSNumber* oldCost = _costs[key];
         if (oldCost)
@@ -540,10 +540,10 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 
         _totalCost += cost;
     [self unlock];
-    
+
     if (didAddObjectBlock)
         didAddObjectBlock(self, key, object);
-    
+
     if (costLimit > 0)
         [self trimToCostByDate:costLimit];
 }
@@ -552,7 +552,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     if (!key)
         return;
-    
+
     [self removeObjectAndExecuteBlocksForKey:key];
 }
 
@@ -560,12 +560,12 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
 {
     if (!trimDate)
         return;
-    
+
     if ([trimDate isEqualToDate:[NSDate distantPast]]) {
         [self removeAllObjects];
         return;
     }
-    
+
     [self trimMemoryToDate:trimDate];
 }
 
@@ -585,34 +585,34 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
         PINCacheBlock willRemoveAllObjectsBlock = _willRemoveAllObjectsBlock;
         PINCacheBlock didRemoveAllObjectsBlock = _didRemoveAllObjectsBlock;
     [self unlock];
-    
+
     if (willRemoveAllObjectsBlock)
         willRemoveAllObjectsBlock(self);
-    
+
     [self lock];
         [_dictionary removeAllObjects];
         [_createdDates removeAllObjects];
         [_accessDates removeAllObjects];
         [_costs removeAllObjects];
         [_ageLimits removeAllObjects];
-    
+
         _totalCost = 0;
     [self unlock];
-    
+
     if (didRemoveAllObjectsBlock)
         didRemoveAllObjectsBlock(self);
-    
+
 }
 
 - (void)enumerateObjectsWithBlock:(PIN_NOESCAPE PINCacheObjectEnumerationBlock)block
 {
     if (!block)
         return;
-    
+
     [self lock];
         NSDate *now = [NSDate date];
         NSArray *keysSortedByCreatedDate = [_createdDates keysSortedByValueUsingSelector:@selector(compare:)];
-        
+
         for (NSString *key in keysSortedByCreatedDate) {
             // If the cache should behave like a TTL cache, then only fetch the object if there's a valid ageLimit and  the object is still alive
             NSTimeInterval ageLimit = [_ageLimits[key] doubleValue] ?: self->_ageLimit;
@@ -761,7 +761,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
     [self lock];
         NSTimeInterval ageLimit = _ageLimit;
     [self unlock];
-    
+
     return ageLimit;
 }
 
@@ -770,7 +770,7 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
     [self lock];
         _ageLimit = ageLimit;
     [self unlock];
-    
+
     [self trimToAgeLimitRecursively];
 }
 
@@ -798,17 +798,17 @@ static NSString * const PINMemoryCacheSharedName = @"PINMemoryCacheSharedName";
     [self lock];
         NSUInteger cost = _totalCost;
     [self unlock];
-    
+
     return cost;
 }
 
 - (BOOL)isTTLCache {
     BOOL isTTLCache;
-    
+
     [self lock];
         isTTLCache = _ttlCache;
     [self unlock];
-    
+
     return isTTLCache;
 }
 

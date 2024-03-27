@@ -1,0 +1,12 @@
+objc_library(
+    name = "PINCache",
+    srcs = glob(["Source/*.m"], allow_empty = False),
+    hdrs = glob(["Source/*.h"], allow_empty = False),
+    deps = [
+        "@PINOperation"
+    ],
+    copts = [
+        "-Wno-deprecated-declarations"
+    ],
+    visibility = ["//visibility:public"]
+)
