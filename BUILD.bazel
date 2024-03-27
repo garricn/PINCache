@@ -3,7 +3,7 @@ objc_library(
     srcs = glob(["Source/*.m"], allow_empty = False),
     hdrs = glob(["Source/*.h"], allow_empty = False),
     deps = [
-        "@PINOperation//:PINOperation"
+        "@com_github_tinderapp_pinoperation//:PINOperation"
     ],
     copts = [
         "-Wno-deprecated-declarations"
