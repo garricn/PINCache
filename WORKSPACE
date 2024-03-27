@@ -36,7 +36,7 @@ apple_support_dependencies()
 
 
 http_archive(
-    name = "com_github_tinderapp_pinoperation",
+    name = "PINOperation",
     urls = ["https://github.com/TinderApp/PINOperation/archive/687bcb7323f4d444f1fb9a6319e909d9c74b9ca5.zip"],
     sha256 = "82100fd8af3f7ff90385348fa738f594659480b75f6adc25eac7b1373cfd0e6c",
     strip_prefix = "PINOperation-687bcb7323f4d444f1fb9a6319e909d9c74b9ca5"

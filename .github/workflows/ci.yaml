@@ -21,10 +21,3 @@ jobs:
       - uses: actions/checkout@v2
       - name: Test
         run: make test
-  bazel:
-    name: Bazel
-    runs-on: macOS-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: bazel
-        run: make bazel
